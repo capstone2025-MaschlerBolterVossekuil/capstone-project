@@ -1,7 +1,17 @@
 // ...existing code...
 import React, { useEffect, useState } from "react"
-import MovieCard from "./components/MovieCard/MovieCard"
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from "react-router-dom"
+import { supabase } from "./lib/supabaseClient"
 import MoviePage from "./pages/MoviePage"
+import AccountSettings from "./pages/AccountSettings/AccountSettings"
+import HomePage from "./pages/HomePage"
+import LoginForm from "./components/LoginForm/LoginForm"
 
 /**
  * @typedef {import('../types/Movie').Movie} Movie
@@ -13,7 +23,7 @@ import MoviePage from "./pages/MoviePage"
     Example .env (create in frontend/): REACT_APP_OMDB_API_KEY=your_key_here
 */
 
-const API_KEY = "d86bc547"
+const API_KEY = process.env.REACT_APP_OMDB_API_KEY || ""
 
 export default function App() {
   const [query, setQuery] = useState("")
@@ -22,9 +32,33 @@ export default function App() {
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState(/** @type {Movie|null} */ (null))
 
+  const [user, setUser] = useState(null)
+
   useEffect(() => {
-    performSearch(query)
+    if (user) {
+      performSearch(query)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  // try to restore session on mount
+  useEffect(() => {
+    let mounted = true
+    async function restore() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        if (!mounted) return
+        if (session && session.user) setUser(session.user)
+      } catch (e) {
+        // ignore
+      }
+    }
+    restore()
+    return () => {
+      mounted = false
+    }
   }, [])
 
   async function performSearch(q) {
@@ -74,58 +108,76 @@ export default function App() {
     }
   }
 
-  if (selected) {
-    return <MoviePage movie={selected} onBack={() => setSelected(null)} />
+  // Top-level Login page component (stable identity)
+  function LoginPage({ setUser }) {
+    const navigate = useNavigate()
+    return (
+      <div style={{ padding: 20, maxWidth: 420, margin: "40px auto" }}>
+        <h1 style={{ marginTop: 0, textAlign: "center" }}>Sign In</h1>
+        <LoginForm
+          onLogin={(user) => {
+            setUser(user)
+            navigate("/", { replace: true })
+          }}
+        />
+      </div>
+    )
   }
 
   return (
-    <div style={{ padding: 20, maxWidth: 1100, margin: "0 auto" }}>
-      <h1 style={{ marginTop: 0 }}>Movies</h1>
-
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          performSearch(query)
-        }}
-        style={{ marginBottom: 16, display: "flex", gap: 8 }}
-      >
-        <input
-          aria-label="Search movies"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search OMDb..."
-          style={{ flex: 1, padding: "8px 10px", fontSize: 16 }}
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage setUser={setUser} />} />
+        <Route
+          path="/"
+          element={
+            user ? (
+              <HomePage
+                user={user}
+                onSignOut={async () => {
+                  try {
+                    await supabase.auth.signOut()
+                  } catch (e) {
+                    console.warn("Sign out failed", e)
+                  }
+                  setUser(null)
+                }}
+                query={query}
+                setQuery={setQuery}
+                performSearch={performSearch}
+                loading={loading}
+                error={error}
+                results={results}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
         />
-        <button type="submit" style={{ padding: "8px 12px" }}>
-          Search
-        </button>
-      </form>
-
-      {loading && <div>Loading…</div>}
-      {error && <div style={{ color: "red" }}>{error}</div>}
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
-          gap: 16,
-        }}
-      >
-        {results.map((m) => (
-          <MovieCard
-            key={m.imdbID}
-            movie={m}
-            onClick={() => {
-              openMovie(m.imdbID)
-            }}
-          />
-        ))}
-      </div>
-
-      {results.length === 0 && !loading && !error && (
-        <div style={{ marginTop: 20, color: "#666" }}>No results</div>
-      )}
-    </div>
+        <Route
+          path="/movie/:imdbID"
+          element={user ? <MoviePage /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/settings"
+          element={
+            user ? (
+              <AccountSettings
+                user={user}
+                initialPreferences={[]}
+                initialWatchedIds={[]}
+                onSave={(payload) => {
+                  console.info("AccountSettings save:", payload)
+                }}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   )
 }
 // ...existing code...

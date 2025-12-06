@@ -1,0 +1,23 @@
+.recommended-feed {
+  margin-top: 16px;
+}
+.recommended-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.recommended-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+.recommended-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.recommended-note {
+  color: #666;
+  font-size: 14px;
+}
