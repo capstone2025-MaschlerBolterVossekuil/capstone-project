@@ -12,11 +12,20 @@ import "./MovieCard.css"
 export default function MovieCard({ movie, onClick }) {
   const poster = movie.Poster && movie.Poster !== "N/A" ? movie.Poster : null
 
+  function handleKey(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault()
+      onClick && onClick(movie)
+    }
+  }
+
   return (
-    <button
-      type="button"
+    <div
       className="movie-card"
       onClick={() => onClick && onClick(movie)}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? handleKey : undefined}
       aria-label={`Open ${movie.Title}`}
     >
       <div className="movie-poster">
@@ -34,7 +43,7 @@ export default function MovieCard({ movie, onClick }) {
           <span className="movie-type">{movie.Type || ""}</span>
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 // ...existing code...
