@@ -96,6 +96,19 @@ export default function AccountSettings({
           Back
         </button>
       </div>
+      {status && (
+        <div
+          style={{
+            padding: "8px 12px",
+            marginBottom: 8,
+            background: status.includes("Error") ? "#fee" : "#efe",
+            color: status.includes("Error") ? "#c00" : "#060",
+            borderRadius: 4,
+          }}
+        >
+          {status}
+        </div>
+      )}
       <div className="tabs">
         <button
           className={active === "child" ? "tab active" : "tab"}
